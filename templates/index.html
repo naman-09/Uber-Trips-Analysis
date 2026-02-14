@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uber Trips — Data Analysis Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #080810;
+  --surface: #12121e;
+  --surface2: #1c1c2e;
+  --border: #252535;
+  --accent: #00e676;
+  --accent-dim: rgba(0,230,118,0.12);
+  --cyan: #18ffff;
+  --amber: #ffca28;
+  --rose: #ff5370;
+  --purple: #c792ea;
+  --text: #e0e0f0;
+  --muted: #7070a0;
+  --dim: #3a3a5a;
+  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Syne', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* GRID BG */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,230,118,0.06), transparent),
+    linear-gradient(rgba(0,230,118,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,230,118,0.025) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  pointer-events:none; z-index:0;
+}
+
+/* ─── LAYOUT ─── */
+.layout { display:flex; min-height:100vh; position:relative; z-index:1; }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 50;
+  padding: 0 0 24px;
+}
+
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 34px; height: 34px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--bg);
+}
+
+.logo-text { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.05em; }
+.logo-sub  { font-size: 9px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px; }
+
+.nav { padding: 16px 0; flex: 1; }
+.nav-section { font-size: 9px; color: var(--dim); letter-spacing: 0.2em; text-transform: uppercase; padding: 12px 20px 6px; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: var(--accent-dim); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+
+.sidebar-status {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+}
+.status-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ─── MAIN ─── */
+.main { margin-left: 220px; flex: 1; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  position: sticky; top: 0;
+  background: rgba(8,8,16,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 40;
+}
+
+.page-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+.topbar-right { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--muted); }
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.badge-green  { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); color: var(--accent); }
+.badge-amber  { background: rgba(255,202,40,0.1); border: 1px solid rgba(255,202,40,0.3); color: var(--amber); }
+
+/* CONTENT */
+.content { padding: 28px 32px; }
+
+/* PAGES */
+.page { display: none; }
+.page.active { display: block; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+/* ─── KPI GRID ─── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.kpi-card:hover { border-color: var(--accent); }
+.kpi-card::before {
+  content: '';
+  position: absolute; top:0; left:0; right:0; height:2px;
+}
+.kpi-card:nth-child(1)::before { background: var(--accent); }
+.kpi-card:nth-child(2)::before { background: var(--cyan); }
+.kpi-card:nth-child(3)::before { background: var(--amber); }
+.kpi-card:nth-child(4)::before { background: var(--rose); }
+.kpi-card:nth-child(5)::before { background: var(--purple); }
+.kpi-card:nth-child(6)::before { background: var(--accent); }
+.kpi-card:nth-child(7)::before { background: var(--cyan); }
+.kpi-card:nth-child(8)::before { background: var(--amber); }
+
+.kpi-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.kpi-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; margin-bottom: 6px; }
+.kpi-card:nth-child(1) .kpi-value { color: var(--accent); }
+.kpi-card:nth-child(2) .kpi-value { color: var(--cyan); }
+.kpi-card:nth-child(3) .kpi-value { color: var(--amber); }
+.kpi-card:nth-child(4) .kpi-value { color: var(--rose); }
+.kpi-card:nth-child(5) .kpi-value { color: var(--purple); }
+.kpi-card:nth-child(6) .kpi-value { color: var(--accent); }
+.kpi-card:nth-child(7) .kpi-value { color: var(--cyan); }
+.kpi-card:nth-child(8) .kpi-value { color: var(--amber); }
+.kpi-sub { font-size: 10px; color: var(--muted); }
+
+/* ─── CHART CARDS ─── */
+.row-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.row-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.chart-title {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.chart-title-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 8px;
+}
+
+/* ─── TABLE ─── */
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead tr { background: var(--surface2); }
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 500;
+  white-space: nowrap;
+}
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+.pill-green  { background: rgba(0,230,118,0.1); color: var(--accent); }
+.pill-rose   { background: rgba(255,83,112,0.1); color: var(--rose); }
+.pill-amber  { background: rgba(255,202,40,0.1); color: var(--amber); }
+.pill-cyan   { background: rgba(24,255,255,0.1); color: var(--cyan); }
+.pill-purple { background: rgba(199,146,234,0.1); color: var(--purple); }
+
+/* ─── PAGINATION ─── */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.page-btn {
+  padding: 5px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+}
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn:disabled { opacity: 0.4; cursor: default; }
+.page-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+/* ─── FILTERS ─── */
+.filters-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-select {
+  padding: 7px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.filter-select:focus, .filter-select:hover { border-color: var(--accent); }
+
+.filter-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+
+/* ─── STATS TABLE ─── */
+.stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+.stat-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+}
+.stat-block-title { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.stat-row:last-child { border-bottom: none; }
+.stat-row-key { font-size: 10px; color: var(--muted); }
+.stat-row-val { font-size: 12px; font-weight: 500; color: var(--accent); }
+
+/* ─── LOADING ─── */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 60px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2,1fr); }
+  .row-2, .row-3, .row-equal { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .content { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">U</div>
+      <div>
+        <div class="logo-text">UberInsight</div>
+        <div class="logo-sub">Analytics Platform</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">Analytics</div>
+      <div class="nav-item active" data-page="overview" onclick="navTo('overview', this)">
+        <span class="icon">📊</span> Overview
+      </div>
+      <div class="nav-item" data-page="temporal" onclick="navTo('temporal', this)">
+        <span class="icon">📅</span> Temporal
+      </div>
+      <div class="nav-item" data-page="categories" onclick="navTo('categories', this)">
+        <span class="icon">🚗</span> Categories
+      </div>
+      <div class="nav-item" data-page="zones" onclick="navTo('zones', this)">
+        <span class="icon">📍</span> Zones & Routes
+      </div>
+      <div class="nav-item" data-page="fares" onclick="navTo('fares', this)">
+        <span class="icon">💰</span> Fares & Surge
+      </div>
+
+      <div class="nav-section" style="margin-top:8px">Data</div>
+      <div class="nav-item" data-page="trips" onclick="navTo('trips', this)">
+        <span class="icon">📋</span> Trip Records
+      </div>
+      <div class="nav-item" data-page="stats" onclick="navTo('stats', this)">
+        <span class="icon">🔢</span> Statistics
+      </div>
+    </nav>
+
+    <div class="sidebar-status">
+      <div><span class="status-dot"></span>API Connected</div>
+      <div style="margin-top:4px; color:var(--dim)">50,000 records loaded</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">Overview Dashboard</div>
+      <div class="topbar-right">
+        <span>NYC Metro · 2024</span>
+        <span class="badge badge-green">● Live</span>
+        <span class="badge badge-amber" id="apiStatus">Loading...</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ═══ OVERVIEW ═══════════════════════════════════════════════ -->
+      <div id="page-overview" class="page active">
+        <div id="kpiGrid" class="kpi-grid">
+          <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Fetching KPIs...</div>
+        </div>
+        <div class="row-2">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Monthly Trip Volume &amp; Revenue</span></div>
+            <canvas id="monthlyChart" height="110"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Trips by Day of Week</span></div>
+            <canvas id="dowChart" height="240"></canvas>
+          </div>
+        </div>
+        <div class="row-3">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Ride Category Split</span></div>
+            <canvas id="categoryDonut" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Fare Distribution</span></div>
+            <canvas id="fareHistOverview" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Rating Distribution</span></div>
+            <canvas id="ratingChart" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ TEMPORAL ════════════════════════════════════════════════ -->
+      <div id="page-temporal" class="page">
+        <div class="row-equal">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>24-Hour Demand Pattern</span></div>
+            <canvas id="hourlyTrips" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Cancellation Rate by Hour</span></div>
+            <canvas id="hourlyCancelChart" height="200"></canvas>
+          </div>
+        </div>
+        <div class="row-equal">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Monthly Average Fare Trend</span></div>
+            <canvas id="monthlyFareChart" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Day-of-Week Revenue</span></div>
+            <canvas id="dowRevChart" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CATEGORIES ══════════════════════════════════════════════ -->
+      <div id="page-categories" class="page">
+        <div class="row-equal">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Trips by Category</span></div>
+            <canvas id="catTripsBar" height="220"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Average Fare by Category</span></div>
+            <canvas id="catFareBar" height="220"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" style="margin-bottom:14px">
+          <div class="chart-title"><span><span class="chart-title-dot"></span>Revenue by Category</span></div>
+          <canvas id="catRevenueBar" height="90"></canvas>
+        </div>
+      </div>
+
+      <!-- ═══ ZONES & ROUTES ══════════════════════════════════════════ -->
+      <div id="page-zones" class="page">
+        <div class="chart-card" style="margin-bottom:14px">
+          <div class="chart-title"><span><span class="chart-title-dot"></span>Top 10 Pickup Zones by Volume</span></div>
+          <canvas id="zonesBar" height="130"></canvas>
+        </div>
+        <div class="chart-card" style="margin-bottom:14px">
+          <div class="chart-title"><span><span class="chart-title-dot"></span>Average Fare by Zone</span></div>
+          <canvas id="zonesFareBar" height="130"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><span><span class="chart-title-dot"></span>Top Routes by Volume</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Pickup Zone</th><th>Dropoff Zone</th>
+                <th>Trips</th><th>Avg Fare</th><th>Avg Duration</th>
+                <th>Avg Distance</th><th>Surge %</th>
+              </tr></thead>
+              <tbody id="routesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ FARES & SURGE ═══════════════════════════════════════════ -->
+      <div id="page-fares" class="page">
+        <div class="row-equal">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Fare Distribution</span></div>
+            <canvas id="fareHistFull" height="220"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Average Surge by Hour</span></div>
+            <canvas id="surgeHourly" height="220"></canvas>
+          </div>
+        </div>
+        <div class="row-equal">
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Surge Frequency by Hour (%)</span></div>
+            <canvas id="surgeFreqChart" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><span><span class="chart-title-dot"></span>Avg Fare by Hour of Day</span></div>
+            <canvas id="hourlyFareChart" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ TRIPS TABLE ══════════════════════════════════════════════ -->
+      <div id="page-trips" class="page">
+        <div class="filters-bar">
+          <span class="filter-label">Filter by:</span>
+          <select class="filter-select" id="filterCategory" onchange="loadTrips(1)">
+            <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="filterZone" onchange="loadTrips(1)">
+            <option value="">All Zones</option>
+          </select>
+          <select class="filter-select" id="filterStatus" onchange="loadTrips(1)">
+            <option value="">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <span id="tripCount" style="font-size:11px; color:var(--muted); margin-left:8px"></span>
+        </div>
+
+        <div class="chart-card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Trip ID</th><th>Timestamp</th><th>Pickup</th><th>Dropoff</th>
+                <th>Category</th><th>Distance</th><th>Duration</th>
+                <th>Fare</th><th>Surge</th><th>Status</th><th>Rating</th>
+              </tr></thead>
+              <tbody id="tripsTableBody">
+                <tr><td colspan="11"><div class="loading"><div class="spinner"></div> Loading trips...</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="tripsPagination"></div>
+        </div>
+      </div>
+
+      <!-- ═══ STATISTICS ══════════════════════════════════════════════ -->
+      <div id="page-stats" class="page">
+        <div id="statsGrid" class="stats-grid">
+          <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Loading stats...</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /layout -->
+
+<script>
+const BASE = '';  // Same-origin — Flask serves this template
+const pageNames = {
+  overview:'Overview Dashboard', temporal:'Temporal Analysis',
+  categories:'Category Breakdown', zones:'Zones & Routes',
+  fares:'Fares & Surge Analysis', trips:'Trip Records', stats:'Statistical Summary'
+};
+
+// ─── CHART DEFAULTS ───────────────────────────────────────────────
+Chart.defaults.color = '#7070a0';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const G = '#2a2a3e';
+const charts = {};
+
+const tooltip = {
+  backgroundColor: '#1c1c2e',
+  borderColor: '#252535',
+  borderWidth: 1,
+  titleColor: '#e0e0f0',
+  bodyColor: '#7070a0',
+  padding: 10,
+};
+
+function mkScales(yLabel='', xLabel='') {
+  return {
+    x: {
+      grid: { color: 'rgba(255,255,255,0.04)' },
+      ticks: { color: '#505070' }
+    },
+    y: {
+      grid: { color: 'rgba(255,255,255,0.04)' },
+      ticks: { color: '#505070' },
+      title: yLabel ? { display:true, text:yLabel, color:'#505070' } : undefined
+    }
+  };
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────
+function navTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('pageTitle').textContent = pageNames[page];
+
+  // Lazy-load page data
+  if (page === 'temporal' && !charts['hourlyTrips']) loadTemporal();
+  if (page === 'categories' && !charts['catTripsBar']) loadCategories();
+  if (page === 'zones' && !charts['zonesBar']) loadZones();
+  if (page === 'fares' && !charts['fareHistFull']) loadFares();
+  if (page === 'trips') loadFilters(), loadTrips(1);
+  if (page === 'stats') loadStats();
+}
+
+// ─── FETCH HELPER ─────────────────────────────────────────────────
+async function api(endpoint) {
+  const res = await fetch(BASE + endpoint);
+  return res.json();
+}
+
+// ─── OVERVIEW ─────────────────────────────────────────────────────
+async function loadOverview() {
+  // Health check
+  try {
+    const h = await api('/api/health');
+    document.getElementById('apiStatus').textContent = `${h.records.toLocaleString()} records`;
+    document.getElementById('apiStatus').className = 'badge badge-green';
+  } catch(e) {
+    document.getElementById('apiStatus').textContent = 'API Error';
+    document.getElementById('apiStatus').className = 'badge badge-rose';
+  }
+
+  // KPIs
+  const kpi = await api('/api/kpi');
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Trips</div>
+      <div class="kpi-value">${(kpi.total_trips/1000).toFixed(1)}K</div>
+      <div class="kpi-sub">50,000 sampled records</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">$${(kpi.total_revenue/1000000).toFixed(2)}M</div>
+      <div class="kpi-sub">Completed trips only</div></div>
+    <div class="kpi-card"><div class="kpi-label">Average Fare</div>
+      <div class="kpi-value">$${kpi.avg_fare}</div>
+      <div class="kpi-sub">Per completed trip</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cancel Rate</div>
+      <div class="kpi-value">${kpi.cancel_rate}%</div>
+      <div class="kpi-sub">Of all trip requests</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Distance</div>
+      <div class="kpi-value">${kpi.avg_distance} mi</div>
+      <div class="kpi-sub">Per completed trip</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Duration</div>
+      <div class="kpi-value">${kpi.avg_duration} min</div>
+      <div class="kpi-sub">Per completed trip</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Rating</div>
+      <div class="kpi-value">${kpi.avg_rating}★</div>
+      <div class="kpi-sub">Driver rating</div></div>
+    <div class="kpi-card"><div class="kpi-label">Surge Trips</div>
+      <div class="kpi-value">${kpi.surge_pct}%</div>
+      <div class="kpi-sub">Had surge pricing</div></div>
+  `;
+
+  // Monthly chart
+  const m = await api('/api/monthly');
+  charts['monthly'] = new Chart('monthlyChart', {
+    data: {
+      labels: m.months,
+      datasets: [
+        { type:'bar', label:'Trips (K)', data: m.trips.map(v=>v/1000),
+          backgroundColor:'rgba(0,230,118,0.2)', borderColor:'#00e676',
+          borderWidth:1, borderRadius:3, yAxisID:'y1' },
+        { type:'line', label:'Revenue ($K)', data: m.revenue,
+          borderColor:'#18ffff', backgroundColor:'rgba(24,255,255,0.06)',
+          borderWidth:2, pointRadius:3, pointBackgroundColor:'#18ffff',
+          tension:0.4, fill:true, yAxisID:'y2' }
+      ]
+    },
+    options: {
+      responsive:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ labels:{ color:'#7070a0', boxWidth:10, padding:14 } }, tooltip },
+      scales:{
+        x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } },
+        y1:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>v+'K' }, position:'left' },
+        y2:{ grid:{ drawOnChartArea:false }, ticks:{ color:'#18ffff', callback:v=>'$'+v+'K' }, position:'right' }
+      }
+    }
+  });
+
+  // DoW chart
+  const d = await api('/api/dow');
+  charts['dow'] = new Chart('dowChart', {
+    type:'bar',
+    data:{
+      labels: d.days,
+      datasets:[{ label:'Trips', data: d.trips,
+        backgroundColor: d.days.map((_,i)=> i>=4 ? 'rgba(255,202,40,0.5)':'rgba(0,230,118,0.25)'),
+        borderColor: d.days.map((_,i)=> i>=4 ? '#ffca28':'#00e676'),
+        borderWidth:1, borderRadius:5 }]
+    },
+    options:{
+      responsive:true, indexAxis:'y',
+      plugins:{ legend:{display:false}, tooltip },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } } }
+    }
+  });
+
+  // Category donut
+  const c = await api('/api/categories');
+  charts['catDonut'] = new Chart('categoryDonut', {
+    type:'doughnut',
+    data:{
+      labels: c.categories,
+      datasets:[{ data: c.pct,
+        backgroundColor:['rgba(0,230,118,0.7)','rgba(24,255,255,0.7)','rgba(255,202,40,0.7)',
+          'rgba(255,83,112,0.7)','rgba(199,146,234,0.7)','rgba(100,200,100,0.7)'],
+        borderColor:'#12121e', borderWidth:3, hoverOffset:6 }]
+    },
+    options:{
+      responsive:true, cutout:'62%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ color:'#7070a0', boxWidth:10, padding:10, font:{size:10} } },
+        tooltip:{ ...tooltip, callbacks:{ label: ctx=>`  ${ctx.label}: ${ctx.parsed}%` } }
+      }
+    }
+  });
+
+  // Fare histogram
+  const f = await api('/api/fare_distribution');
+  charts['fareHist'] = new Chart('fareHistOverview', {
+    type:'bar',
+    data:{
+      labels: f.buckets,
+      datasets:[{ label:'% Trips', data: f.pct,
+        backgroundColor: f.pct.map(v=> v>20?'rgba(0,230,118,0.7)':v>12?'rgba(0,230,118,0.4)':'rgba(0,230,118,0.2)'),
+        borderColor:'#00e676', borderWidth:1, borderRadius:3 }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label: ctx=>`  ${ctx.parsed.y.toFixed(1)}% of trips` } } },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>v+'%' } } }
+    }
+  });
+
+  // Rating chart
+  const r = await api('/api/ratings');
+  charts['rating'] = new Chart('ratingChart', {
+    type:'bar',
+    data:{
+      labels: r.buckets,
+      datasets:[{ label:'Trips', data: r.counts,
+        backgroundColor: r.counts.map((_,i)=> i>5?'rgba(0,230,118,0.7)':i>3?'rgba(255,202,40,0.5)':'rgba(255,83,112,0.45)'),
+        borderColor: r.counts.map((_,i)=> i>5?'#00e676':i>3?'#ffca28':'#ff5370'),
+        borderWidth:1, borderRadius:3 }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{display:false}, tooltip },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070' } } }
+    }
+  });
+}
+
+// ─── TEMPORAL ─────────────────────────────────────────────────────
+async function loadTemporal() {
+  const [h, m, d] = await Promise.all([api('/api/hourly'), api('/api/monthly'), api('/api/dow')]);
+
+  charts['hourlyTrips'] = new Chart('hourlyTrips', {
+    type:'line',
+    data:{ labels:h.hours, datasets:[{ label:'Trips', data:h.trips,
+      borderColor:'#18ffff', backgroundColor:'rgba(24,255,255,0.08)',
+      borderWidth:2, pointRadius:0, fill:true, tension:0.4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip },
+      scales: mkScales('Trip Count') }
+  });
+
+  charts['hourlyCancel'] = new Chart('hourlyCancelChart', {
+    type:'bar',
+    data:{ labels:h.hours, datasets:[{ label:'Cancel %', data:h.cancel_rate,
+      backgroundColor: h.cancel_rate.map(v=> v>=7?'rgba(255,83,112,0.7)':v>=5?'rgba(255,202,40,0.5)':'rgba(255,83,112,0.25)'),
+      borderColor: h.cancel_rate.map(v=> v>=7?'#ff5370':v>=5?'#ffca28':'#ff5370'),
+      borderWidth:1, borderRadius:2 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  ${ctx.parsed.y}% cancel rate` } } },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', maxTicksLimit:8 } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>v+'%' } } } }
+  });
+
+  charts['monthlyFare'] = new Chart('monthlyFareChart', {
+    type:'line',
+    data:{ labels:m.months, datasets:[{ label:'Avg Fare ($)', data:m.avg_fare,
+      borderColor:'#ffca28', backgroundColor:'rgba(255,202,40,0.08)',
+      borderWidth:2, pointRadius:4, pointBackgroundColor:'#ffca28', fill:true, tension:0.4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.y}` } } },
+      scales: mkScales('Avg Fare ($)') }
+  });
+
+  charts['dowRev'] = new Chart('dowRevChart', {
+    type:'bar',
+    data:{ labels:d.days, datasets:[{ label:'Revenue ($K)', data:d.revenue,
+      backgroundColor:'rgba(199,146,234,0.4)', borderColor:'#c792ea', borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.y}K` } } },
+      scales: mkScales('Revenue ($K)') }
+  });
+}
+
+// ─── CATEGORIES ───────────────────────────────────────────────────
+async function loadCategories() {
+  const c = await api('/api/categories');
+  const colors = ['#00e676','#18ffff','#ffca28','#ff5370','#c792ea','#64b964'];
+
+  charts['catTripsBar'] = new Chart('catTripsBar', {
+    type:'bar', data:{ labels:c.categories,
+      datasets:[{ label:'Trips', data:c.trips,
+        backgroundColor: colors.map(c=>`${c}40`), borderColor:colors, borderWidth:1, borderRadius:5 }] },
+    options:{ responsive:true, indexAxis:'y',
+      plugins:{ legend:{display:false}, tooltip },
+      scales: mkScales('') }
+  });
+
+  charts['catFareBar'] = new Chart('catFareBar', {
+    type:'bar', data:{ labels:c.categories,
+      datasets:[{ label:'Avg Fare ($)', data:c.avg_fare,
+        backgroundColor: colors.map(c=>`${c}40`), borderColor:colors, borderWidth:1, borderRadius:5 }] },
+    options:{ responsive:true, indexAxis:'y',
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.x}` } } },
+      scales: mkScales('') }
+  });
+
+  const rev = c.revenue.map(v=>(v/1000).toFixed(1));
+  charts['catRev'] = new Chart('catRevenueBar', {
+    type:'bar', data:{ labels:c.categories,
+      datasets:[{ label:'Revenue ($K)', data:rev,
+        backgroundColor: colors.map(c=>`${c}55`), borderColor:colors, borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.y}K` } } },
+      scales: mkScales('Revenue ($K)') }
+  });
+}
+
+// ─── ZONES & ROUTES ───────────────────────────────────────────────
+async function loadZones() {
+  const z = await api('/api/zones');
+  const rt = await api('/api/routes');
+
+  charts['zonesBar'] = new Chart('zonesBar', {
+    type:'bar', data:{ labels:z.zones,
+      datasets:[{ label:'Trips', data:z.trips,
+        backgroundColor: z.trips.map((_,i)=> i===0?'rgba(0,230,118,0.7)':i<3?'rgba(0,230,118,0.45)':'rgba(0,230,118,0.2)'),
+        borderColor:'#00e676', borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip },
+      scales: mkScales('Trips') }
+  });
+
+  charts['zonesFare'] = new Chart('zonesFareBar', {
+    type:'bar', data:{ labels:z.zones,
+      datasets:[{ label:'Avg Fare ($)', data:z.avg_fare,
+        backgroundColor:'rgba(255,202,40,0.3)', borderColor:'#ffca28', borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.y}` } } },
+      scales: mkScales('Avg Fare ($)') }
+  });
+
+  // Routes table
+  const tbody = document.getElementById('routesTableBody');
+  const surgePill = pct => pct>=30 ? `<span class="pill pill-rose">${pct}%</span>`
+    : pct>=15 ? `<span class="pill pill-amber">${pct}%</span>`
+    : `<span class="pill pill-green">${pct}%</span>`;
+
+  tbody.innerHTML = rt.routes.map((r,i) => `
+    <tr>
+      <td style="color:var(--accent)">${String(i+1).padStart(2,'0')}</td>
+      <td>${r.pickup}</td>
+      <td>${r.dropoff}</td>
+      <td>${r.trips.toLocaleString()}</td>
+      <td>$${r.avg_fare}</td>
+      <td>${r.avg_duration} min</td>
+      <td>${r.avg_distance} mi</td>
+      <td>${surgePill(r.surge_freq)}</td>
+    </tr>`).join('');
+}
+
+// ─── FARES & SURGE ────────────────────────────────────────────────
+async function loadFares() {
+  const [f, s, h] = await Promise.all([api('/api/fare_distribution'), api('/api/surge'), api('/api/hourly')]);
+
+  charts['fareHistFull'] = new Chart('fareHistFull', {
+    type:'bar', data:{ labels:f.buckets,
+      datasets:[{ label:'% Trips', data:f.pct,
+        backgroundColor: f.pct.map(v=>v>20?'rgba(0,230,118,0.7)':v>12?'rgba(0,230,118,0.4)':'rgba(0,230,118,0.2)'),
+        borderColor:'#00e676', borderWidth:1, borderRadius:3 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  ${ctx.parsed.y.toFixed(1)}% of trips` } } },
+      scales: mkScales('% of Trips') }
+  });
+
+  charts['surgeHourly'] = new Chart('surgeHourly', {
+    type:'line', data:{ labels:s.hours,
+      datasets:[{ label:'Avg Surge Multiplier', data:s.avg_surge,
+        borderColor:'#ffca28', backgroundColor:'rgba(255,202,40,0.08)',
+        borderWidth:2, pointRadius:0, fill:true, tension:0.4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  ${ctx.parsed.y}×` } } },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', maxTicksLimit:8 } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>v+'×' },
+                   min:1 } } }
+  });
+
+  charts['surgeFreq'] = new Chart('surgeFreqChart', {
+    type:'bar', data:{ labels:s.hours,
+      datasets:[{ label:'Surge Frequency %', data:s.surge_pct,
+        backgroundColor: s.surge_pct.map(v=>v>=40?'rgba(255,83,112,0.6)':v>=25?'rgba(255,202,40,0.5)':'rgba(0,230,118,0.25)'),
+        borderColor: s.surge_pct.map(v=>v>=40?'#ff5370':v>=25?'#ffca28':'#00e676'),
+        borderWidth:1, borderRadius:3 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  ${ctx.parsed.y}% of trips had surge` } } },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', maxTicksLimit:8 } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>v+'%' } } } }
+  });
+
+  charts['hourlyFare'] = new Chart('hourlyFareChart', {
+    type:'line', data:{ labels:h.hours,
+      datasets:[{ label:'Avg Fare ($)', data:h.avg_fare,
+        borderColor:'#c792ea', backgroundColor:'rgba(199,146,234,0.08)',
+        borderWidth:2, pointRadius:0, fill:true, tension:0.4 }] },
+    options:{ responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{ ...tooltip, callbacks:{ label:ctx=>`  $${ctx.parsed.y}` } } },
+      scales:{ x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', maxTicksLimit:8 } },
+               y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#505070', callback:v=>'$'+v } } } }
+  });
+}
+
+// ─── TRIP RECORDS ─────────────────────────────────────────────────
+async function loadFilters() {
+  const f = await api('/api/filters');
+  const catSel  = document.getElementById('filterCategory');
+  const zoneSel = document.getElementById('filterZone');
+  if (catSel.options.length === 1) {
+    f.categories.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
+    f.zones.forEach(z => { const o=document.createElement('option'); o.value=z; o.textContent=z; zoneSel.appendChild(o); });
+  }
+}
+
+let tripsPage = 1;
+async function loadTrips(page=1) {
+  tripsPage = page;
+  const cat    = document.getElementById('filterCategory').value;
+  const zone   = document.getElementById('filterZone').value;
+  const status = document.getElementById('filterStatus').value;
+
+  const url = `/api/trips?page=${page}&per_page=20&category=${encodeURIComponent(cat)}&zone=${encodeURIComponent(zone)}&status=${status}`;
+  const tbody = document.getElementById('tripsTableBody');
+  tbody.innerHTML = `<tr><td colspan="11"><div class="loading"><div class="spinner"></div> Loading...</div></td></tr>`;
+
+  const data = await api(url);
+  document.getElementById('tripCount').textContent = `${data.total.toLocaleString()} trips`;
+
+  const catPill = cat => {
+    const m = { 'UberX':'pill-green','Comfort':'pill-cyan','UberXL':'pill-amber','Black':'pill-purple','Black SUV':'pill-purple','Green':'pill-green' };
+    return `<span class="pill ${m[cat]||'pill-green'}">${cat}</span>`;
+  };
+
+  tbody.innerHTML = data.trips.map(t => `
+    <tr>
+      <td style="color:var(--muted); font-size:9px">${t.trip_id}</td>
+      <td style="color:var(--muted)">${t.timestamp}</td>
+      <td>${t.pickup_zone}</td>
+      <td>${t.dropoff_zone}</td>
+      <td>${catPill(t.category)}</td>
+      <td>${t.distance_mi} mi</td>
+      <td>${t.duration_min} min</td>
+      <td style="color:var(--accent)">$${t.fare}</td>
+      <td>${t.surge_multiplier > 1 ? `<span class="pill pill-amber">${t.surge_multiplier}×</span>` : '<span style="color:var(--muted)">1.0×</span>'}</td>
+      <td>${t.cancelled ? '<span class="pill pill-rose">Cancelled</span>' : '<span class="pill pill-green">Done</span>'}</td>
+      <td>${t.rating !== null ? t.rating + '★' : '<span style="color:var(--muted)">—</span>'}</td>
+    </tr>`).join('');
+
+  renderPagination(data.page, data.pages, data.total);
+}
+
+function renderPagination(page, pages, total) {
+  const el = document.getElementById('tripsPagination');
+  const from = (page-1)*20+1, to = Math.min(page*20, total);
+  let html = `<span>Showing ${from}–${to} of ${total.toLocaleString()}</span>`;
+  html += `<button class="page-btn" onclick="loadTrips(${page-1})" ${page<=1?'disabled':''}>‹ Prev</button>`;
+  const start = Math.max(1,page-2), end = Math.min(pages,page+2);
+  for (let i=start; i<=end; i++) {
+    html += `<button class="page-btn ${i===page?'active':''}" onclick="loadTrips(${i})">${i}</button>`;
+  }
+  html += `<button class="page-btn" onclick="loadTrips(${page+1})" ${page>=pages?'disabled':''}>Next ›</button>`;
+  el.innerHTML = html;
+}
+
+// ─── STATISTICS ───────────────────────────────────────────────────
+async function loadStats() {
+  const s = await api('/api/stats');
+  const kpi = await api('/api/kpi');
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-block">
+      <div class="stat-block-title">// Fare Statistics</div>
+      ${statRow('Min Fare', '$'+s.fare.min)}
+      ${statRow('Max Fare', '$'+s.fare.max)}
+      ${statRow('Mean Fare', '$'+s.fare.mean)}
+      ${statRow('Median Fare', '$'+s.fare.median)}
+      ${statRow('Std Dev', '$'+s.fare.std)}
+      ${statRow('25th Percentile', '$'+s.fare.p25)}
+      ${statRow('75th Percentile', '$'+s.fare.p75)}
+      ${statRow('95th Percentile', '$'+s.fare.p95)}
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-title">// Distance Statistics</div>
+      ${statRow('Min Distance', s.distance.min+' mi')}
+      ${statRow('Max Distance', s.distance.max+' mi')}
+      ${statRow('Mean Distance', s.distance.mean+' mi')}
+      ${statRow('Median Distance', s.distance.median+' mi')}
+      <div style="height:14px"></div>
+      <div class="stat-block-title">// Duration Statistics</div>
+      ${statRow('Min Duration', s.duration.min+' min')}
+      ${statRow('Max Duration', s.duration.max+' min')}
+      ${statRow('Mean Duration', s.duration.mean+' min')}
+      ${statRow('Median Duration', s.duration.median+' min')}
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-title">// Trip Overview</div>
+      ${statRow('Total Records', s.total_records.toLocaleString())}
+      ${statRow('Completed', ((1-kpi.cancel_rate/100)*s.total_records).toFixed(0|0).toLocaleString())}
+      ${statRow('Cancelled', (kpi.cancel_rate/100*s.total_records).toFixed(0).toLocaleString())}
+      ${statRow('Cancel Rate', kpi.cancel_rate+'%')}
+      ${statRow('Avg Rating', kpi.avg_rating+'★')}
+      ${statRow('Surge Trips', kpi.surge_pct+'%')}
+      ${statRow('Total Revenue', '$'+(kpi.total_revenue/1e6).toFixed(2)+'M')}
+      ${statRow('Avg Fare', '$'+kpi.avg_fare)}
+    </div>
+  `;
+}
+
+function statRow(k, v) {
+  return `<div class="stat-row"><span class="stat-row-key">${k}</span><span class="stat-row-val">${v}</span></div>`;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+loadOverview();
+</script>
+</body>
+</html>
