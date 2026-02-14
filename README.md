@@ -57,35 +57,6 @@ open http://localhost:5000
 
 ---
 
-## 🌐 Deploy Free in 5 Minutes
-
-### Option A — Railway (Recommended, free tier)
-1. Go to https://railway.app → New Project → Deploy from GitHub
-2. Push this folder to a GitHub repo
-3. Railway auto-detects Python + Procfile → deploys automatically
-4. Get a permanent public URL like `https://uber-analytics.up.railway.app`
-
-### Option B — Render (Free tier)
-1. Go to https://render.com → New Web Service
-2. Connect GitHub repo
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `gunicorn app:app`
-5. Free URL: `https://uber-analytics.onrender.com`
-
-### Option C — Heroku
-```bash
-heroku create uber-trips-analysis
-git push heroku main
-heroku open
-```
-
-### Option D — Google Cloud Run (Free tier)
-```bash
-gcloud run deploy uber-analytics --source . --port 5000 --allow-unauthenticated
-```
-
----
-
 ## 💡 Customising with Real Data
 
 Replace the `generate_uber_data()` function in `app.py` with your own CSV:
